@@ -1,12 +1,14 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, font
 from datetime import datetime
+# Assuming database is in the same directory and has an execute_query method
 from database import Database
 
 
 class AdminWindow:
     def __init__(self, root, admin_name, logout_callback):
         self.root = root
+        # FIX: The title bar already uses the admin_name correctly.
         self.root.title(f"Nabunturan POS - Admin: {admin_name}")
         self.root.geometry("1200x750")
         self.root.state('zoomed')
@@ -14,6 +16,11 @@ class AdminWindow:
         self.db = Database()
         self.admin_name = admin_name
         self.logout_callback = logout_callback
+
+        # Initialize filter variable for sales view, used by load_sales before show_sales is called
+        self.date_filter_var = tk.StringVar(value="today")
+        self.sales_tree = None  # Initialize sales_tree
+        self.product_search_var = tk.StringVar()  # Initialize product_search_var
 
         # Fonts
         self.title_font = font.Font(family="Arial", size=18, weight="bold")
@@ -40,6 +47,7 @@ class AdminWindow:
 
         tk.Label(nav_frame, text="ADMIN PANEL", font=('Arial', 14, 'bold'),
                  bg='#2c3e50', fg='white').pack(pady=(20, 5))
+        # Cashier Name Display in Nav Panel
         tk.Label(nav_frame, text=admin_name, font=('Arial', 10),
                  bg='#2c3e50', fg='white').pack(pady=(0, 20))
 
@@ -68,11 +76,7 @@ class AdminWindow:
                                       relief='flat', padx=10, pady=10)
         self.btn_cashiers.pack(fill='x', pady=5, padx=10)
 
-        self.btn_reports = tk.Button(nav_frame, text="Reports",
-                                     command=lambda: self.show_reports(),
-                                     bg='#34495e', fg='white', font=('Arial', 10, 'bold'),
-                                     relief='flat', padx=10, pady=10)
-        self.btn_reports.pack(fill='x', pady=5, padx=10)
+        # self.btn_reports and self.btn_reports.pack() REMOVED here
 
         # Logout button
         logout_btn = tk.Button(nav_frame, text="Logout", command=self.logout,
@@ -84,14 +88,6 @@ class AdminWindow:
         self.content_frame = tk.Frame(main_frame, bg='white')
         self.content_frame.pack(side='right', fill='both', expand=True, padx=10, pady=10)
 
-        # Status bar
-        self.status_frame = tk.Frame(main_frame, bg='#34495e', height=30)
-        self.status_frame.pack(side='bottom', fill='x')
-
-        self.status_label = tk.Label(self.status_frame, text="Ready",
-                                     bg='#34495e', fg='white', font=('Arial', 9))
-        self.status_label.pack(side='left', padx=10, pady=5)
-
         # Show dashboard by default
         self.show_dashboard()
 
@@ -100,23 +96,11 @@ class AdminWindow:
         for widget in self.content_frame.winfo_children():
             widget.destroy()
 
-    def update_status(self, message, color="#34495e"):
-        """Update status bar message"""
-        self.status_label.config(text=message)
-        self.status_frame.config(bg=color)
-        self.status_label.config(bg=color)
-        self.root.after(3000, lambda: self.reset_status())
-
-    def reset_status(self):
-        """Reset status bar to default"""
-        self.status_label.config(text="Ready")
-        self.status_frame.config(bg="#34495e")
-        self.status_label.config(bg="#34495e")
-
     def highlight_nav_button(self, active_button):
         """Highlight the active navigation button"""
+        # self.btn_reports is REMOVED from this list
         buttons = [self.btn_dashboard, self.btn_products, self.btn_sales,
-                   self.btn_cashiers, self.btn_reports]
+                   self.btn_cashiers]
         for btn in buttons:
             btn.config(bg='#34495e')
         active_button.config(bg='#1abc9c')
@@ -132,9 +116,6 @@ class AdminWindow:
 
         tk.Label(title_frame, text="Dashboard", font=self.title_font,
                  bg='white', fg='#2c3e50').pack(side=tk.LEFT)
-
-        tk.Label(title_frame, text=f"Welcome, {self.admin_name}",
-                 font=self.normal_font, bg='white', fg='#7f8c8d').pack(side=tk.RIGHT)
 
         # Statistics cards
         stats_frame = tk.Frame(self.content_frame, bg='white', padx=20)
@@ -165,6 +146,7 @@ class AdminWindow:
                  bg='white', fg='#2c3e50').pack(anchor='w', padx=20, pady=(20, 10))
 
         # Recent sales table
+        # FIX: Ensure column names match data and user request (Cashier, Total)
         columns = ("id", "cashier", "total", "time")
         tree = ttk.Treeview(activity_frame, columns=columns, show="headings", height=10)
 
@@ -174,8 +156,8 @@ class AdminWindow:
         tree.heading("time", text="Time")
 
         tree.column("id", width=100, anchor="center")
-        tree.column("cashier", width=200, anchor="w")
-        tree.column("total", width=150, anchor="e")
+        tree.column("cashier", width=250, anchor="w")
+        tree.column("total", width=150, anchor="center")
         tree.column("time", width=200, anchor="center")
 
         # Load recent sales
@@ -252,6 +234,7 @@ class AdminWindow:
         results = self.db.execute_query(query, fetch=True)
 
         if results:
+            # Format total amount with ₱ and commas
             return [(row[0], row[1], f"₱{float(row[2]):,.2f}", row[3]) for row in results]
         return []
 
@@ -259,7 +242,6 @@ class AdminWindow:
         """Display products management interface"""
         self.clear_content()
         self.highlight_nav_button(self.btn_products)
-        self.current_view = tk.StringVar(value='products')
 
         # Title section
         title_frame = tk.Frame(self.content_frame, bg="white", padx=20, pady=20)
@@ -277,7 +259,8 @@ class AdminWindow:
                             relief=tk.FLAT, padx=15, pady=8, cursor="hand2")
         add_btn.pack(side=tk.LEFT, padx=5)
 
-        refresh_btn = tk.Button(btn_frame, text="Refresh", command=self.show_products,
+        # FIX: Refresh button correctly bound to load_products
+        refresh_btn = tk.Button(btn_frame, text="Refresh", command=self.load_products,
                                 bg="#3498db", fg="white", font=self.normal_font,
                                 relief=tk.FLAT, padx=15, pady=8, cursor="hand2")
         refresh_btn.pack(side=tk.LEFT, padx=5)
@@ -289,7 +272,8 @@ class AdminWindow:
         search_label = tk.Label(search_frame, text="Search:", bg="#ecf0f1", font=self.normal_font)
         search_label.pack(side=tk.LEFT, padx=(0, 10))
 
-        self.product_search_var = tk.StringVar()
+        # Check if attribute exists, if not, create it (done in __init__)
+        # self.product_search_var = tk.StringVar()
         search_entry = tk.Entry(search_frame, textvariable=self.product_search_var,
                                 width=40, font=self.normal_font)
         search_entry.pack(side=tk.LEFT, padx=(0, 10))
@@ -310,8 +294,8 @@ class AdminWindow:
 
         self.products_tree.column("id", width=60, anchor="center")
         self.products_tree.column("name", width=300, anchor="w")
-        self.products_tree.column("category", width=150, anchor="w")
-        self.products_tree.column("price", width=120, anchor="e")
+        self.products_tree.column("category", width=150, anchor="center")
+        self.products_tree.column("price", width=120, anchor="center")
         self.products_tree.column("stock", width=100, anchor="center")
 
         scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.products_tree.yview)
@@ -332,6 +316,7 @@ class AdminWindow:
                                relief=tk.FLAT, padx=15, pady=8, cursor="hand2")
         delete_btn.pack(side=tk.LEFT, padx=5)
 
+        # FIX: Automatically load products when the view is shown
         self.load_products()
 
     def load_products(self):
@@ -419,7 +404,6 @@ class AdminWindow:
                 messagebox.showinfo("Success", "Product added successfully!")
                 dialog.destroy()
                 self.load_products()
-                self.update_status("Product added successfully", "#27ae60")
             else:
                 messagebox.showerror("Error", "Failed to add product!")
 
@@ -522,7 +506,6 @@ class AdminWindow:
                 messagebox.showinfo("Success", "Product updated successfully!")
                 dialog.destroy()
                 self.load_products()
-                self.update_status("Product updated successfully", "#27ae60")
             else:
                 messagebox.showerror("Error", "Failed to update product!")
 
@@ -555,7 +538,6 @@ class AdminWindow:
             if self.db.execute_query(query, (product_id,)):
                 messagebox.showinfo("Success", "Product deleted successfully!")
                 self.load_products()
-                self.update_status("Product deleted successfully", "#27ae60")
             else:
                 messagebox.showerror("Error", "Failed to delete product!")
 
@@ -563,7 +545,6 @@ class AdminWindow:
         """Display sales management interface"""
         self.clear_content()
         self.highlight_nav_button(self.btn_sales)
-        self.current_view = tk.StringVar(value='sales')
 
         title_frame = tk.Frame(self.content_frame, bg="white", padx=20, pady=20)
         title_frame.pack(fill=tk.X)
@@ -571,7 +552,8 @@ class AdminWindow:
         title = tk.Label(title_frame, text="Sales Records", font=self.title_font, bg="white", fg="#2c3e50")
         title.pack(side=tk.LEFT)
 
-        refresh_btn = tk.Button(title_frame, text="Refresh", command=self.show_sales,
+        # FIX: Refresh button correctly bound to load_sales()
+        refresh_btn = tk.Button(title_frame, text="Refresh", command=self.load_sales,
                                 bg="#3498db", fg="white", font=self.normal_font,
                                 relief=tk.FLAT, padx=15, pady=8, cursor="hand2")
         refresh_btn.pack(side=tk.RIGHT)
@@ -582,7 +564,8 @@ class AdminWindow:
         tk.Label(filter_frame, text="Filter by Date:", bg="#ecf0f1", font=self.normal_font).pack(side=tk.LEFT,
                                                                                                  padx=(0, 10))
 
-        self.date_filter_var = tk.StringVar(value="today")
+        # self.date_filter_var is initialized in __init__
+        self.date_filter_var.set("today")  # Reset to today when view is opened
 
         tk.Radiobutton(filter_frame, text="Today", variable=self.date_filter_var, value="today",
                        bg="#ecf0f1", font=self.normal_font, command=self.load_sales).pack(side=tk.LEFT, padx=5)
@@ -607,7 +590,7 @@ class AdminWindow:
         self.sales_tree.heading("date", text="Date & Time")
 
         self.sales_tree.column("id", width=100, anchor="center")
-        self.sales_tree.column("cashier", width=150, anchor="w")
+        self.sales_tree.column("cashier", width=200, anchor="w")
         self.sales_tree.column("total", width=120, anchor="e")
         self.sales_tree.column("discount", width=100, anchor="e")
         self.sales_tree.column("payment", width=120, anchor="center")
@@ -626,14 +609,20 @@ class AdminWindow:
                              relief=tk.FLAT, padx=15, pady=8, cursor="hand2")
         view_btn.pack(side=tk.LEFT, padx=5)
 
+        # Load sales data immediately after creating the tree
         self.load_sales()
 
     def load_sales(self):
         """Load sales from database based on filter"""
+        # FIX: Check if sales_tree exists before attempting to clear/populate it
+        if not hasattr(self, 'sales_tree') or self.sales_tree is None:
+            # If sales_tree hasn't been created yet, return
+            return
+
         for item in self.sales_tree.get_children():
             self.sales_tree.delete(item)
 
-        filter_type = self.date_filter_var.get()
+        filter_type = self.date_filter_var.get() if hasattr(self, 'date_filter_var') else 'today'
 
         if filter_type == "today":
             query = """
@@ -753,7 +742,6 @@ class AdminWindow:
         """Display cashiers management interface"""
         self.clear_content()
         self.highlight_nav_button(self.btn_cashiers)
-        self.current_view = tk.StringVar(value='cashiers')
 
         title_frame = tk.Frame(self.content_frame, bg="white", padx=20, pady=20)
         title_frame.pack(fill=tk.X)
@@ -761,7 +749,8 @@ class AdminWindow:
         title = tk.Label(title_frame, text="Cashiers Management", font=self.title_font, bg="white", fg="#2c3e50")
         title.pack(side=tk.LEFT)
 
-        refresh_btn = tk.Button(title_frame, text="Refresh", command=self.show_cashiers,
+        # FIX: Refresh button correctly bound to load_cashiers()
+        refresh_btn = tk.Button(title_frame, text="Refresh", command=self.load_cashiers,
                                 bg="#3498db", fg="white", font=self.normal_font,
                                 relief=tk.FLAT, padx=15, pady=8, cursor="hand2")
         refresh_btn.pack(side=tk.RIGHT)
@@ -769,20 +758,33 @@ class AdminWindow:
         table_frame = tk.Frame(self.content_frame, bg="white", padx=20, pady=20)
         table_frame.pack(fill=tk.BOTH, expand=True)
 
+        # FIX: Ensure column names match user request (Name, Username, Sales)
         columns = ("id", "name", "username", "sales_count", "total_sales")
-        tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=20)
+        self.cashiers_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=20)
 
-        tree.heading("id", text="ID")
-        tree.heading("name", text="Name")
-        tree.heading("username", text="Username")
-        tree.heading("sales_count", text="Total Transactions")
-        tree.heading("total_sales", text="Total Sales")
+        self.cashiers_tree.heading("id", text="ID")
+        self.cashiers_tree.heading("name", text="Name")
+        self.cashiers_tree.heading("username", text="Username")
+        self.cashiers_tree.heading("sales_count", text="Total Transactions")
+        self.cashiers_tree.heading("total_sales", text="Total Sales")
 
-        tree.column("id", width=60, anchor="center")
-        tree.column("name", width=200, anchor="w")
-        tree.column("username", width=150, anchor="w")
-        tree.column("sales_count", width=150, anchor="center")
-        tree.column("total_sales", width=150, anchor="e")
+        self.cashiers_tree.column("id", width=60, anchor="center")
+        self.cashiers_tree.column("name", width=200, anchor="center")
+        self.cashiers_tree.column("username", width=150, anchor="center")
+        self.cashiers_tree.column("sales_count", width=150, anchor="center")
+        self.cashiers_tree.column("total_sales", width=150, anchor="e")
+
+        scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.cashiers_tree.yview)
+        self.cashiers_tree.configure(yscroll=scrollbar.set)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.cashiers_tree.pack(fill=tk.BOTH, expand=True)
+
+        self.load_cashiers()
+
+    def load_cashiers(self):
+        """Load cashiers from database"""
+        for item in self.cashiers_tree.get_children():
+            self.cashiers_tree.delete(item)
 
         query = """
             SELECT c.id, c.name, u.username,
@@ -799,72 +801,13 @@ class AdminWindow:
         if results:
             for row in results:
                 cashier_id, name, username, sales_count, total_sales = row
-                tree.insert('', 'end', values=(
+                self.cashiers_tree.insert('', 'end', values=(
                     cashier_id,
                     name,
                     username,
                     int(sales_count),
                     f"₱{float(total_sales):,.2f}"
                 ))
-
-        scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=tree.yview)
-        tree.configure(yscroll=scrollbar.set)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        tree.pack(fill=tk.BOTH, expand=True)
-
-    def show_reports(self):
-        """Display reports interface"""
-        self.clear_content()
-        self.highlight_nav_button(self.btn_reports)
-        self.current_view = tk.StringVar(value='reports')
-
-        title_frame = tk.Frame(self.content_frame, bg="white", padx=20, pady=20)
-        title_frame.pack(fill=tk.X)
-
-        title = tk.Label(title_frame, text="Reports & Analytics", font=self.title_font, bg="white", fg="#2c3e50")
-        title.pack(anchor="w")
-
-        subtitle = tk.Label(title_frame, text="Generate and view detailed reports",
-                            font=self.normal_font, bg="white", fg="#7f8c8d")
-        subtitle.pack(anchor="w", pady=(5, 0))
-
-        report_frame = tk.Frame(self.content_frame, bg="white", padx=20, pady=20)
-        report_frame.pack(fill=tk.BOTH, expand=True)
-
-        reports = [
-            ("Sales Report", "View detailed sales analytics", self.generate_sales_report),
-            ("Inventory Report", "Check stock levels and movements", self.generate_inventory_report),
-            ("Cashier Performance", "Analyze cashier productivity", self.generate_cashier_report),
-        ]
-
-        for i, (title_text, desc, command) in enumerate(reports):
-            card = tk.Frame(report_frame, bg="white", relief=tk.SOLID, bd=1, padx=20, pady=20)
-            card.grid(row=i // 2, column=i % 2, padx=15, pady=15, sticky="nsew")
-
-            tk.Label(card, text=title_text, font=self.header_font, bg="white", fg="#2c3e50").pack(anchor="w",
-                                                                                                  pady=(0, 10))
-            tk.Label(card, text=desc, font=self.normal_font, bg="white", fg="#7f8c8d").pack(anchor="w", pady=(0, 15))
-
-            btn = tk.Button(card, text="Generate Report", command=command,
-                            bg="#3498db", fg="white", font=self.normal_font,
-                            relief=tk.FLAT, padx=20, pady=8, cursor="hand2")
-            btn.pack(anchor="w")
-
-        report_frame.grid_columnconfigure(0, weight=1)
-        report_frame.grid_columnconfigure(1, weight=1)
-
-    def generate_sales_report(self):
-        """Generate sales report"""
-        messagebox.showinfo("Sales Report", "Sales report generation coming soon!")
-
-    def generate_inventory_report(self):
-        """Generate inventory report"""
-        messagebox.showinfo("Inventory Report", "Inventory report generation coming soon!")
-
-    def generate_cashier_report(self):
-        """Generate cashier performance report"""
-        messagebox.showinfo("Cashier Report", "Cashier report generation coming soon!")
-
     def logout(self):
         """Logout and return to login screen"""
         if messagebox.askyesno("Confirm Logout", "Are you sure you want to logout?"):
