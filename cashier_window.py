@@ -54,11 +54,7 @@ class CashierWindow:
                                  bg='#1abc9c', fg='white', font=('Arial', 10, 'bold'), relief='flat', padx=10,
                                  pady=10)
         self.btn_pos.pack(fill='x', pady=5, padx=10)
-        self.btn_shift_report = tk.Button(nav_frame, text="Shift Report",
-                                          command=lambda: self.show_view('shift_report'),
-                                          bg='#34495e', fg='white', font=('Arial', 10, 'bold'), relief='flat', padx=10,
-                                          pady=10)
-        self.btn_shift_report.pack(fill='x', pady=5, padx=10)
+
 
         # Logout button
         logout_btn_nav = tk.Button(nav_frame, text="Logout", command=self.logout,
@@ -92,9 +88,9 @@ class CashierWindow:
     def show_view(self, view_name):
         self.clear_content_frame()
         self.current_view.set(view_name)
-        self.btn_dashboard.config(bg='#34495e')
-        self.btn_pos.config(bg='#34495e')
-        self.btn_shift_report.config(bg='#34495e')
+
+
+
 
         if view_name == 'dashboard':
             self.btn_dashboard.config(bg='#1abc9c')
@@ -102,9 +98,7 @@ class CashierWindow:
         elif view_name == 'pos':
             self.btn_pos.config(bg='#1abc9c')
             self.setup_pos_view()
-        elif view_name == 'shift_report':
-            self.btn_shift_report.config(bg='#1abc9c')
-            self.setup_shift_report_view()
+
 
     def setup_dashboard_view(self):
         """Setup cashier dashboard with performance metrics"""
@@ -249,33 +243,7 @@ class CashierWindow:
                     for row in results]
         return []
 
-    def setup_shift_report_view(self):
-        tk.Label(self.content_frame, text="Shift Report & Feedback", font=('Arial', 16, 'bold'), bg='#f0f0f0').pack(
-            pady=20)
-        tk.Label(self.content_frame, text="Submit any issues or important notes from your shift.", bg='#f0f0f0').pack(
-            pady=10)
 
-        self.shift_report_text = scrolledtext.ScrolledText(self.content_frame, height=15, width=70)
-        self.shift_report_text.pack(padx=20, pady=10)
-
-        submit_btn = tk.Button(self.content_frame, text="Submit Shift Report", command=self.submit_shift_report,
-                               bg='#9C27B0', fg='white')
-        submit_btn.pack(pady=10)
-
-    def submit_shift_report(self):
-        feedback = self.shift_report_text.get(1.0, tk.END).strip()
-        if not feedback:
-            messagebox.showwarning("Warning", "Enter feedback for the report.")
-            return
-
-        report_query = "INSERT INTO sales (cashier_id, total, discount, payment_method, feedback) VALUES (%s, 0, 0, 'report', %s)"
-        if self.db.execute_query(report_query, (self.cashier_id, feedback)):
-            messagebox.showinfo("Success", "Shift Report submitted.")
-            self.shift_report_text.delete(1.0, tk.END)
-            log_query = "INSERT INTO cashier_logs (cashier_id, activity) VALUES (%s, 'Shift Report submitted')"
-            self.db.execute_query(log_query, (self.cashier_id,))
-        else:
-            messagebox.showerror("Error", "Failed to submit report.")
 
     def setup_pos_view(self):
         # Title
